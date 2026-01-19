@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Race</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .players-list {
+            margin: 20px 0;
+        }
+
+        .player-item {
+            background: #f7f7f7;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .player-progress {
+            width: 200px;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-left: 15px;
+        }
+
+        .player-progress-bar {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s;
+        }
+
+        .text-display {
+            background: #f7f7f7;
+            padding: 25px;
+            border-radius: 10px;
+            font-size: 20px;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            min-height: 150px;
+        }
+
+        .text-display span.correct {
+            color: #4caf50;
+        }
+
+        .text-display span.incorrect {
+            color: #f44336;
+            background: #ffebee;
+        }
+
+        .text-display span.current {
+            background: #fff9c4;
+        }
+
+        .typing-input {
+            font-size: 20px;
+            font-family: monospace;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .countdown {
+            font-size: 48px;
+            text-align: center;
+            color: #667eea;
+            margin: 30px 0;
+            font-weight: bold;
+        }
+
+        .winner-badge {
+            background: #ffd700;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #f44336;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .waiting-message {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Typing Race</h1>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen active">
+            <input type="text" id="nameInput" placeholder="Enter your screen name" maxlength="20">
+            <button id="joinBtn">Join Race</button>
+            <div id="loginError" class="error" style="display:none;"></div>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobbyScreen" class="screen">
+            <h2 style="text-align: center; margin-bottom: 20px;">Waiting Room</h2>
+            <div class="waiting-message">Waiting for more players to join...</div>
+            <div class="players-list" id="lobbyPlayers"></div>
+            <button id="startBtn" style="margin-top: 20px;">Start Race</button>
+        </div>
+
+        <!-- Race Screen -->
+        <div id="raceScreen" class="screen">
+            <div id="countdown" class="countdown" style="display:none;"></div>
+            <div class="text-display" id="textDisplay"></div>
+            <input type="text" class="typing-input" id="typingInput" placeholder="Start typing..." disabled>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="wpm">0</div>
+                    <div class="stat-label">WPM</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="accuracy">100</div>
+                    <div class="stat-label">Accuracy %</div>
+                </div>
+            </div>
+            <div class="players-list" id="racePlayers"></div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="resultsScreen" class="screen">
+            <h2 style="text-align: center; margin-bottom: 20px;">🏆 Race Results</h2>
+            <div class="players-list" id="resultsPlayers"></div>
+            <button id="newRaceBtn" style="margin-top: 20px;">New Race</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // IMPORTANT: Replace with your Firebase config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Sample texts - replace with your textbook content
+        const textBlocks = [
+            "The quick brown fox jumps over the lazy dog. Programming is both an art and a science that requires creativity and logic.",
+            "Learning to type quickly improves productivity and communication. Practice makes perfect when developing new skills.",
+            "Technology shapes our modern world in countless ways. Innovation drives progress and creates new opportunities for everyone.",
+            "Education empowers individuals to reach their full potential. Knowledge opens doors to understanding and growth.",
+            "Collaboration brings people together to achieve common goals. Teamwork creates stronger solutions than working alone."
+        ];
+
+        let app, db, raceRef;
+        let playerId = null;
+        let playerName = null;
+        let currentText = "";
+        let startTime = null;
+        let charIndex = 0;
+        let errors = 0;
+        let totalChars = 0;
+
+        // Initialize Firebase
+        async function initFirebase() {
+            try {
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getDatabase, ref, set, push, onValue, update, remove, get } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
+                
+                app = initializeApp(firebaseConfig);
+                db = getDatabase(app);
+                raceRef = ref(db, 'race');
+
+                window.dbFunctions = { ref, set, push, onValue, update, remove, get };
+                
+                setupEventListeners();
+            } catch (error) {
+                showError('Firebase initialization failed. Please check your configuration.');
+                console.error(error);
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('joinBtn').addEventListener('click', joinRace);
+            document.getElementById('startBtn').addEventListener('click', startRace);
+            document.getElementById('typingInput').addEventListener('input', handleTyping);
+            document.getElementById('newRaceBtn').addEventListener('click', resetRace);
+            
+            document.getElementById('nameInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') joinRace();
+            });
+        }
+
+        async function joinRace() {
+            const name = document.getElementById('nameInput').value.trim();
+            if (!name) {
+                showError('Please enter a screen name');
+                return;
+            }
+
+            playerName = name;
+            playerId = 'player_' + Date.now();
+
+            const { ref, set, onValue, get } = window.dbFunctions;
+            const playerRef = ref(db, `race/players/${playerId}`);
+            
+            try {
+                await set(playerRef, {
+                    name: playerName,
+                    progress: 0,
+                    wpm: 0,
+                    accuracy: 100,
+                    finished: false,
+                    finishTime: null
+                });
+
+                showScreen('lobbyScreen');
+                listenToRace();
+            } catch (error) {
+                showError('Failed to join race. Please try again.');
+            }
+        }
+
+        function listenToRace() {
+            const { ref, onValue } = window.dbFunctions;
+            const raceDataRef = ref(db, 'race');
+
+            onValue(raceDataRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                const players = data.players || {};
+                const status = data.status || 'lobby';
+                const text = data.text || '';
+
+                if (status === 'lobby') {
+                    updateLobby(players);
+                } else if (status === 'countdown') {
+                    showScreen('raceScreen');
+                    startCountdown();
+                } else if (status === 'racing') {
+                    showScreen('raceScreen');
+                    if (!currentText) {
+                        currentText = text;
+                        displayText();
+                        document.getElementById('typingInput').disabled = false;
+                        document.getElementById('typingInput').focus();
+                        startTime = Date.now();
+                    }
+                    updateRacePlayers(players);
+                } else if (status === 'finished') {
+                    showScreen('resultsScreen');
+                    updateResults(players);
+                }
+            });
+        }
+
+        function updateLobby(players) {
+            const container = document.getElementById('lobbyPlayers');
+            container.innerHTML = '';
+            
+            Object.entries(players).forEach(([id, player]) => {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `<div class="player-name">${player.name}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        async function startRace() {
+            const { ref, set } = window.dbFunctions;
+            const selectedText = textBlocks[Math.floor(Math.random() * textBlocks.length)];
+            
+            await set(ref(db, 'race/status'), 'countdown');
+            await set(ref(db, 'race/text'), selectedText);
+        }
+
+        async function startCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            const typingInput = document.getElementById('typingInput');
+            
+            countdownEl.style.display = 'block';
+            typingInput.disabled = true;
+
+            for (let i = 3; i > 0; i--) {
+                countdownEl.textContent = i;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            countdownEl.textContent = 'GO!';
+            await new Promise(resolve => setTimeout(resolve, 500));
+            countdownEl.style.display = 'none';
+
+            const { ref, set } = window.dbFunctions;
+            await set(ref(db, 'race/status'), 'racing');
+        }
+
+        function displayText() {
+            const display = document.getElementById('textDisplay');
+            display.innerHTML = currentText.split('').map((char, i) => {
+                return `<span id="char-${i}">${char}</span>`;
+            }).join('');
+        }
+
+        async function handleTyping(e) {
+            const input = e.target.value;
+            const currentChar = currentText[charIndex];
+
+            if (input.endsWith(currentChar)) {
+                document.getElementById(`char-${charIndex}`).className = 'correct';
+                charIndex++;
+                totalChars++;
+            } else if (input.length > 0) {
+                document.getElementById(`char-${charIndex}`).className = 'incorrect';
+                errors++;
+                totalChars++;
+            }
+
+            if (charIndex < currentText.length) {
+                document.getElementById(`char-${charIndex}`).className = 'current';
+            }
+
+            e.target.value = '';
+
+            const progress = (charIndex / currentText.length) * 100;
+            const timeElapsed = (Date.now() - startTime) / 1000 / 60;
+            const wpm = Math.round((charIndex / 5) / timeElapsed) || 0;
+            const accuracy = totalChars > 0 ? Math.round(((totalChars - errors) / totalChars) * 100) : 100;
+
+            document.getElementById('wpm').textContent = wpm;
+            document.getElementById('accuracy').textContent = accuracy;
+
+            const { ref, update } = window.dbFunctions;
+            await update(ref(db, `race/players/${playerId}`), {
+                progress,
+                wpm,
+                accuracy
+            });
+
+            if (charIndex >= currentText.length) {
+                await finishRace(wpm, accuracy);
+            }
+        }
+
+        async function finishRace(wpm, accuracy) {
+            document.getElementById('typingInput').disabled = true;
+            
+            const { ref, update, get } = window.dbFunctions;
+            await update(ref(db, `race/players/${playerId}`), {
+                finished: true,
+                finishTime: Date.now(),
+                wpm,
+                accuracy
+            });
+
+            const playersSnapshot = await get(ref(db, 'race/players'));
+            const players = playersSnapshot.val();
+            const allFinished = Object.values(players).every(p => p.finished);
+
+            if (allFinished) {
+                await update(ref(db, 'race'), { status: 'finished' });
+            }
+        }
+
+        function updateRacePlayers(players) {
+            const container = document.getElementById('racePlayers');
+            container.innerHTML = '';
+            
+            Object.entries(players).sort((a, b) => b[1].progress - a[1].progress).forEach(([id, player]) => {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-progress">
+                        <div class="player-progress-bar" style="width: ${player.progress}%"></div>
+                    </div>
+                    <div>${player.wpm} WPM</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateResults(players) {
+            const container = document.getElementById('resultsPlayers');
+            container.innerHTML = '';
+            
+            const sorted = Object.entries(players)
+                .filter(([_, p]) => p.finished)
+                .sort((a, b) => a[1].finishTime - b[1].finishTime);
+            
+            sorted.forEach(([id, player], index) => {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `
+                    <div>
+                        <span style="font-size: 24px; margin-right: 10px;">${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}</span>
+                        <span class="player-name">${player.name}</span>
+                    </div>
+                    <div>
+                        <strong>${player.wpm} WPM</strong> | ${player.accuracy}% accuracy
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function resetRace() {
+            const { ref, set } = window.dbFunctions;
+            await set(ref(db, 'race'), {
+                status: 'lobby',
+                text: '',
+                players: {}
+            });
+            
+            charIndex = 0;
+            errors = 0;
+            totalChars = 0;
+            currentText = '';
+            startTime = null;
+            
+            showScreen('loginScreen');
+            document.getElementById('nameInput').value = '';
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showError(msg) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            setTimeout(() => errorEl.style.display = 'none', 3000);
+        }
+
+        initFirebase();
+    </script>
+</body>
+</html>
