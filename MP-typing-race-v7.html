@@ -725,6 +725,22 @@
 
             onValue(raceDataRef, (snapshot) => {
                 const data = snapshot.val();
+                
+                // If race data is completely empty and we're not a teacher, go back to login
+                if (!data && !isTeacher) {
+                    console.log('Race reset detected - returning to login');
+                    playerId = null;
+                    playerName = null;
+                    playerIcon = null;
+                    currentText = '';
+                    charIndex = 0;
+                    errors = 0;
+                    totalChars = 0;
+                    startTime = null;
+                    showScreen('loginScreen');
+                    return;
+                }
+                
                 if (!data) return;
 
                 const players = data.players || {};
